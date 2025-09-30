@@ -5,21 +5,21 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 RUN \
     apt-get update -y && \
+    # Add gcc-multilib to provide the missing 32-bit headers
     apt-get install -y --no-install-recommends \
       ca-certificates jq tor net-tools cron nano mc python2 python-is-python2 supervisor unzip wget \
-      # Add swig, a dependency for compiling m2crypto
-      build-essential python2-dev libssl-dev swig \
+      build-essential python2-dev libssl-dev swig gcc-multilib \
     && \
     wget https://bootstrap.pypa.io/pip/2.7/get-pip.py -O /tmp/get-pip.py && \
     python2 /tmp/get-pip.py && \
-    # Downgrade m2crypto to a much older, more compatible version
     pip2 install apsw==3.9.2.post1 m2crypto==0.22.3 && \
     # --- AceStream Installation ---
     mkdir -p /mnt/media/playlists && \
     wget -O /tmp/acestream.tar.gz http://dl.acestream.org/linux/acestream_3.1.16_debian_8.7_x86_64.tar.gz && \
     tar --strip-components=1 -C /usr/share -vzxf /tmp/acestream.tar.gz && \
     # --- Final Cleanup ---
-    apt-get purge -y --auto-remove build-essential python2-dev libssl-dev swig && \
+    # Also remove gcc-multilib after it's used
+    apt-get purge -y --auto-remove build-essential python2-dev libssl-dev swig gcc-multilib && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/*
 
