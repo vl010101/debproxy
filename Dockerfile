@@ -1,48 +1,62 @@
-# Set base to Debian jessie
-FROM debian:jessie
+# Шаг 1: Используем современную, легковесную и поддерживаемую версию Debian 11 (Bullseye)
+FROM debian:bullseye-slim
 
-# install base packages
-ENV DEBIAN_FRONTEND=noninteractive
-WORKDIR /tmp
+# Устанавливаем переменную, чтобы избежать интерактивных диалогов при установке пакетов
+ARG DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update -y && \
-    apt-get install -y apt-utils && \
-    apt-get install -y \
+# Шаг 2: Выполняем все команды установки и очистки в одном слое для оптимизации размера образа
+RUN \
+    # Обновляем список пакетов
+    apt-get update -y && \
+    # Устанавливаем все необходимые зависимости (имена пакетов обновлены для Debian 11)
+    apt-get install -y --no-install-recommends \
       ca-certificates \
-      libpython2.7 \
       jq \
       tor \
       net-tools \
       cron \
       nano \
       mc \
-      python-apsw \
-      python-m2crypto \
+      python2 \
+      python-is-python2 \
+      python2-apsw \
+      python2-m2crypto \
       supervisor \
       unzip \
       wget \
     && \
+    # Создаем нужную директорию
     mkdir -p /mnt/media/playlists && \
-# install acestream-engine
-    wget  -o - http://dl.acestream.org/linux/acestream_3.1.16_debian_8.7_x86_64.tar.gz && \
-    tar --show-transformed-names --transform='s/acestream_3.1.16_debian_8.7_x86_64/acestream/' -vzxf acestream_3.1.16_debian_8.7_x86_64.tar.gz && \
-    mv acestream /usr/share && \
-    rm -rf /tmp/* /etc/tor/torrc
+    # Скачиваем, распаковываем и устанавливаем AceStream
+    wget -O /tmp/acestream.tar.gz http://dl.acestream.org/linux/acestream_3.1.16_debian_8.7_x86_64.tar.gz && \
+    tar \
+      --strip-components=1 \
+      -C /usr/share \
+      -vzxf /tmp/acestream.tar.gz \
+    && \
+    # Очищаем кэш apt и удаляем скачанные/ненужные файлы, чтобы уменьшить размер образа
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/*
 
-# add services
-ADD supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-ADD supervisor/supervisord.conf /etc/supervisor/supervisord.conf
-ADD ace.hls_parser.sh /mnt/media/playlists/ace.hls_parser.sh
-ADD torrc /etc/tor/torrc
-RUN chmod +x /mnt/media/playlists/ace.hls_parser.sh
-RUN /mnt/media/playlists/ace.hls_parser.sh
-ADD start.sh /usr/bin/start.sh
-RUN chmod +x /usr/bin/start.sh
+# Шаг 3: Копируем файлы конфигурации и скрипты в образ
+# Используем COPY вместо ADD для локальных файлов - это лучшая практика
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY ace.hls_parser.sh /mnt/media/playlists/ace.hls_parser.sh
+COPY torrc /etc/tor/torrc
+COPY start.sh /usr/bin/start.sh
 
-RUN rm -rf /tmp/*
+# Шаг 4: Устанавливаем права на выполнение для скриптов
+RUN chmod +x /mnt/media/playlists/ace.hls_parser.sh && \
+    chmod +x /usr/bin/start.sh
 
+# Открываем порты
 EXPOSE 8621 62062 9944 9903 6878
+
+# Указываем, что эта папка может использоваться как том (volume)
 VOLUME /mnt/media/playlists
 
+# Устанавливаем рабочую директорию
 WORKDIR /
+
+# Шаг 5: Указываем команду, которая будет запускаться при старте контейнера
 ENTRYPOINT ["/usr/bin/start.sh"]
