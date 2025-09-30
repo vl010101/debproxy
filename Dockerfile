@@ -8,38 +8,28 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN \
     # Обновляем список пакетов
     apt-get update -y && \
-    # Устанавливаем все необходимые зависимости (имена пакетов обновлены для Debian 11)
+    # Устанавливаем базовые зависимости И инструменты для сборки (build-essential, python2-dev)
     apt-get install -y --no-install-recommends \
-      ca-certificates \
-      jq \
-      tor \
-      net-tools \
-      cron \
-      nano \
-      mc \
-      python2 \
-      python-is-python2 \
-      python2-apsw \
-      python2-m2crypto \
-      supervisor \
-      unzip \
-      wget \
+      ca-certificates jq tor net-tools cron nano mc python2 python-is-python2 supervisor unzip wget \
+      build-essential python2-dev libssl-dev \
     && \
-    # Создаем нужную директорию
+    # Устанавливаем PIP для Python 2
+    wget https://bootstrap.pypa.io/pip/2.7/get-pip.py -O /tmp/get-pip.py && \
+    python2 /tmp/get-pip.py && \
+    # Устанавливаем недостающие пакеты Python через PIP
+    pip2 install apsw m2crypto && \
+    # --- Теперь идут оригинальные шаги установки AceStream ---
     mkdir -p /mnt/media/playlists && \
-    # Скачиваем, распаковываем и устанавливаем AceStream
     wget -O /tmp/acestream.tar.gz http://dl.acestream.org/linux/acestream_3.1.16_debian_8.7_x86_64.tar.gz && \
-    tar \
-      --strip-components=1 \
-      -C /usr/share \
-      -vzxf /tmp/acestream.tar.gz \
-    && \
-    # Очищаем кэш apt и удаляем скачанные/ненужные файлы, чтобы уменьшить размер образа
+    tar --strip-components=1 -C /usr/share -vzxf /tmp/acestream.tar.gz && \
+    # --- Финальная очистка ---
+    # Удаляем инструменты для сборки, которые больше не нужны, чтобы уменьшить размер образа
+    apt-get purge -y --auto-remove build-essential python2-dev libssl-dev && \
+    # Очищаем кэш apt и временные файлы
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/*
 
 # Шаг 3: Копируем файлы конфигурации и скрипты в образ
-# Используем COPY вместо ADD для локальных файлов - это лучшая практика
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY ace.hls_parser.sh /mnt/media/playlists/ace.hls_parser.sh
 COPY torrc /etc/tor/torrc
@@ -51,12 +41,9 @@ RUN chmod +x /mnt/media/playlists/ace.hls_parser.sh && \
 
 # Открываем порты
 EXPOSE 8621 62062 9944 9903 6878
-
 # Указываем, что эта папка может использоваться как том (volume)
 VOLUME /mnt/media/playlists
-
 # Устанавливаем рабочую директорию
 WORKDIR /
-
 # Шаг 5: Указываем команду, которая будет запускаться при старте контейнера
 ENTRYPOINT ["/usr/bin/start.sh"]
