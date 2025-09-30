@@ -16,8 +16,9 @@ RUN \
     # Устанавливаем PIP для Python 2
     wget https://bootstrap.pypa.io/pip/2.7/get-pip.py -O /tmp/get-pip.py && \
     python2 /tmp/get-pip.py && \
-    # Устанавливаем недостающие пакеты Python через PIP
-    pip2 install apsw m2crypto && \
+    # --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
+    # Устанавливаем КОНКРЕТНЫЕ СТАРЫЕ ВЕРСИИ пакетов, совместимые с Python 2.7
+    pip2 install apsw==3.30.1-r1 m2crypto==0.35.2 && \
     # --- Теперь идут оригинальные шаги установки AceStream ---
     mkdir -p /mnt/media/playlists && \
     wget -O /tmp/acestream.tar.gz http://dl.acestream.org/linux/acestream_3.1.16_debian_8.7_x86_64.tar.gz && \
